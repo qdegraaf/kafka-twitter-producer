@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -14,8 +13,7 @@ import (
 func CreateTopic(p *kafka.Producer, topic string) error {
 	a, err := kafka.NewAdminClientFromProducer(p)
 	if err != nil {
-		fmt.Printf("Failed to create new admin client from producer: %s", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to create new admin client from producer: %w", err)
 	}
 	// Contexts are used to abort or limit the amount of time
 	// the Admin call blocks waiting for a result.
@@ -25,9 +23,9 @@ func CreateTopic(p *kafka.Producer, topic string) error {
 	// Set Admin options to wait up to 60s for the operation to finish on the remote cluster
 	maxDur, err := time.ParseDuration("60s")
 	if err != nil {
-		fmt.Printf("ParseDuration(60s): %s", err)
-		os.Exit(1)
+		return fmt.Errorf("ParseDuration(60s): %w", err)
 	}
+
 	results, err := a.CreateTopics(
 		ctx,
 		[]kafka.TopicSpecification{{
@@ -54,8 +52,7 @@ func CreateTopic(p *kafka.Producer, topic string) error {
 func DeleteTopic(p *kafka.Producer, topic string) error {
 	a, err := kafka.NewAdminClientFromProducer(p)
 	if err != nil {
-		fmt.Printf("Failed to create new admin client from producer: %s", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to create new admin client from producer: %w", err)
 	}
 
 	// Contexts are used to abort or limit the amount of time
@@ -66,9 +63,9 @@ func DeleteTopic(p *kafka.Producer, topic string) error {
 	// Set Admin options to wait up to 60s for the operation to finish on the remote cluster
 	maxDur, err := time.ParseDuration("60s")
 	if err != nil {
-		fmt.Printf("ParseDuration(60s): %s", err)
-		os.Exit(1)
+		return fmt.Errorf("ParseDuration(60s): %w", err)
 	}
+
 	results, err := a.DeleteTopics(
 		ctx,
 		[]string{topic},
@@ -85,5 +82,4 @@ func DeleteTopic(p *kafka.Producer, topic string) error {
 	}
 	a.Close()
 	return nil
-
 }
