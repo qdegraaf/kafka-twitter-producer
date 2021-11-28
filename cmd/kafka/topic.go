@@ -9,12 +9,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type KafkaClient interface {
+	CreateTopics(ctx context.Context, topics []kafka.TopicSpecification, options ...kafka.CreateTopicsAdminOption) (result []kafka.TopicResult, err error) {
+}
+
 // CreateTopic creates a topic using the Confluent Admin Client API
-func CreateTopic(p *kafka.Producer, topic string) error {
-	a, err := kafka.NewAdminClientFromProducer(p)
-	if err != nil {
-		return fmt.Errorf("failed to create new admin client from producer: %w", err)
-	}
+func CreateTopic(client *KafkaClient, topic string) error {
 	// Contexts are used to abort or limit the amount of time
 	// the Admin call blocks waiting for a result.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -26,7 +26,7 @@ func CreateTopic(p *kafka.Producer, topic string) error {
 		return fmt.Errorf("ParseDuration(60s): %w", err)
 	}
 
-	results, err := a.CreateTopics(
+	results, err := client.CreateTopics(
 		ctx,
 		[]kafka.TopicSpecification{{
 			Topic:             topic,
@@ -43,18 +43,12 @@ func CreateTopic(p *kafka.Producer, topic string) error {
 		}
 		log.Info().Msgf("%v\n", result)
 	}
-	a.Close()
 	return nil
 
 }
 
 // DeleteTopic deletes a topic using the Confluent Admin Client API
-func DeleteTopic(p *kafka.Producer, topic string) error {
-	a, err := kafka.NewAdminClientFromProducer(p)
-	if err != nil {
-		return fmt.Errorf("failed to create new admin client from producer: %w", err)
-	}
-
+func DeleteTopic(client *kafka.AdminClient, topic string) error {
 	// Contexts are used to abort or limit the amount of time
 	// the Admin call blocks waiting for a result.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -66,7 +60,7 @@ func DeleteTopic(p *kafka.Producer, topic string) error {
 		return fmt.Errorf("ParseDuration(60s): %w", err)
 	}
 
-	results, err := a.DeleteTopics(
+	results, err := client.DeleteTopics(
 		ctx,
 		[]string{topic},
 		kafka.SetAdminOperationTimeout(maxDur),
@@ -80,6 +74,6 @@ func DeleteTopic(p *kafka.Producer, topic string) error {
 		}
 		log.Info().Msgf("%v\n", result)
 	}
-	a.Close()
+	client.Close()
 	return nil
 }

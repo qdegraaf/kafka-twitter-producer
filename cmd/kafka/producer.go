@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -41,13 +42,19 @@ func main() {
 		"sasl.username":     conf.ConfluentAPIKey,
 		"sasl.password":     conf.ConfluentAPISecret})
 	if err != nil {
-		log.Fatal().Msgf("failed to create producer: %s", err)
+		log.Fatal().Msgf("failed to create Kafka producer: %s", err.Error())
+	}
+
+	// Create Admin Client
+	api, err := kafka.NewAdminClientFromProducer(p)
+	if err != nil {
+		log.Fatal().Msgf("failed to create Confluent admin client: %s", err.Error())
 	}
 
 	// Create topic if needed
-	err = CreateTopic(p, conf.KafkaTopic)
+	err = CreateTopic(api, conf.KafkaTopic)
 	if err != nil {
-		log.Fatal().Msgf("fatal error during creation of Kafka topic: %w", err)
+		log.Fatal().Msgf("fatal error during creation of Kafka topic: %s", err.Error())
 	}
 
 	// Go-routine to handle message delivery reports and
@@ -71,7 +78,7 @@ func main() {
 
 	tok, err := twitterstream.NewTokenGenerator().SetApiKeyAndSecret(conf.TwitterAPIKey, conf.TwitterAPISecret).RequestBearerToken()
 	if err != nil {
-		log.Fatal().Msgf("could not acquire Twitter Bearer token: %w", err)
+		log.Fatal().Msgf("could not acquire Twitter Bearer token: %s", err.Error())
 	}
 
 	api := twitterstream.NewTwitterStream(tok.AccessToken)
@@ -81,27 +88,27 @@ func main() {
 		log.Info().Msg("reset flag set, starting reset of rules")
 		err = twitter.DeleteAllRules(api)
 		if err != nil {
-			log.Fatal().Msgf("an error occurred during rule reset: %w", err)
+			log.Fatal().Msgf("an error occurred during rule reset: %s", err.Error())
 		}
 	}
 
 	newRules, err := twitter.ReadRulesFromFile(rulesFile)
 	if err != nil {
-		log.Fatal().Msgf("unable to read rules from file at path %s: %w", rulesFile, err)
+		log.Fatal().Msgf("unable to read rules from file at path %s: %s", rulesFile, err.Error())
 	}
 
 	log.Info().Msg("Adding rules....")
 
 	err = twitter.AddRules(api, newRules, false)
 	if err != nil {
-		log.Fatal().Msgf("unable to create rules: %w", err)
+		log.Fatal().Msgf("unable to create rules: %s", err.Error())
 	}
 	log.Info().Msg("Starting Stream...")
 
 	api.Stream.SetUnmarshalHook(func(bytes []byte) (interface{}, error) {
 		data := twitter.StreamData{}
 		if err := json.Unmarshal(bytes, &data); err != nil {
-			log.Printf("Failed to unmarshal bytes: %v", err)
+			log.Error().Msgf("Failed to unmarshal bytes: %s", err.Error())
 		}
 		return data, err
 	})
