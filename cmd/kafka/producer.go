@@ -1,14 +1,11 @@
 package main
 
 import (
-	//baselog "log"
-	"context"
 	"encoding/json"
-	"fmt"
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	twitterstream "github.com/fallenstedt/twitter-stream"
@@ -16,53 +13,21 @@ import (
 
 	"github.com/qdegraaf/kafka-twitter-producer/config"
 	"github.com/qdegraaf/kafka-twitter-producer/pkg/twitter"
-
 )
 
-// CreateTopic creates a topic using the Admin Client API
-func CreateTopic(p *kafka.Producer, topic string) {
-	a, err := kafka.NewAdminClientFromProducer(p)
-	if err != nil {
-		fmt.Printf("Failed to create new admin client from producer: %s", err)
-		os.Exit(1)
-	}
-	// Contexts are used to abort or limit the amount of time
-	// the Admin call blocks waiting for a result.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	// Create topics on cluster.
-	// Set Admin options to wait up to 60s for the operation to finish on the remote cluster
-	maxDur, err := time.ParseDuration("60s")
-	if err != nil {
-		fmt.Printf("ParseDuration(60s): %s", err)
-		os.Exit(1)
-	}
-	results, err := a.CreateTopics(
-		ctx,
-		// Multiple topics can be created simultaneously
-		// by providing more TopicSpecification structs here.
-		[]kafka.TopicSpecification{{
-			Topic:             topic,
-			NumPartitions:     1,
-			ReplicationFactor: 3}},
-		// Admin options
-		kafka.SetAdminOperationTimeout(maxDur))
-	if err != nil {
-		fmt.Printf("Admin Client request error: %v\n", err)
-		os.Exit(1)
-	}
-	for _, result := range results {
-		if result.Error.Code() != kafka.ErrNoError && result.Error.Code() != kafka.ErrTopicAlreadyExists {
-			fmt.Printf("Failed to create topic: %v\n", result.Error)
-			os.Exit(1)
-		}
-		fmt.Printf("%v\n", result)
-	}
-	a.Close()
+var reset bool
+var rulesFile string
 
+func Init() {
+	flag.StringVar(&rulesFile, "rules", "", "Path to rules YAML file")
+	flag.BoolVar(&reset, "reset", false, "If set will delete all rules present on streaming API before creating new ones")
+	flag.Parse()
 }
 
 func main() {
+	// TODO: Chop main into sensible chunks. Its getting rather large
+	Init()
+
 	conf, err := config.Parse()
 	if err != nil {
 		log.Fatal().Msgf("could not parse environment variables: " + err.Error())
@@ -80,7 +45,10 @@ func main() {
 	}
 
 	// Create topic if needed
-	CreateTopic(p, conf.KafkaTopic)
+	err = CreateTopic(p, conf.KafkaTopic)
+	if err != nil {
+		log.Fatal().Msgf("fatal error during creation of Kafka topic: %w", err)
+	}
 
 	// Go-routine to handle message delivery reports and
 	// possibly other event types (errors, stats, etc)
@@ -103,23 +71,32 @@ func main() {
 
 	tok, err := twitterstream.NewTokenGenerator().SetApiKeyAndSecret(conf.TwitterAPIKey, conf.TwitterAPISecret).RequestBearerToken()
 	if err != nil {
-		log.Fatal().Msgf("could not acquire Twitter Bearer token " + err.Error())
+		log.Fatal().Msgf("could not acquire Twitter Bearer token: %w", err)
+	}
+
+	api := twitterstream.NewTwitterStream(tok.AccessToken)
+
+	// If reset flag passed, delete existing rules first
+	if reset {
+		log.Info().Msg("reset flag set, starting reset of rules")
+		err = twitter.DeleteAllRules(api)
+		if err != nil {
+			log.Fatal().Msgf("an error occurred during rule reset: %w", err)
+		}
+	}
+
+	newRules, err := twitter.ReadRulesFromFile(rulesFile)
+	if err != nil {
+		log.Fatal().Msgf("unable to read rules from file at path %s: %w", rulesFile, err)
 	}
 
 	log.Info().Msg("Adding rules....")
-	rules := `{
-		"add": [
-				{"value": "cat has:images", "tag": "cat rule 2"}
-			]
-		}
-`
-	err = twitter.AddRules(conf, rules, false)
+
+	err = twitter.AddRules(api, newRules, false)
 	if err != nil {
 		log.Fatal().Msgf("unable to create rules: %w", err)
 	}
 	log.Info().Msg("Starting Stream...")
-
-	api := twitterstream.NewTwitterStream(tok.AccessToken)
 
 	api.Stream.SetUnmarshalHook(func(bytes []byte) (interface{}, error) {
 		data := twitter.StreamData{}
@@ -142,10 +119,10 @@ func main() {
 				continue
 			}
 			p.Produce(&kafka.Message{
-								TopicPartition: kafka.TopicPartition{Topic: &conf.KafkaTopic, Partition: kafka.PartitionAny},
-								Value:          []byte(tweet.Data.Text),
-								Key:            []byte("test"),
-							}, nil)
+				TopicPartition: kafka.TopicPartition{Topic: &conf.KafkaTopic, Partition: kafka.PartitionAny},
+				Value:          []byte(tweet.Data.Text),
+				Key:            []byte("test"),
+			}, nil)
 			log.Info().Msg(tweet.Data.Text)
 		}
 	}()
