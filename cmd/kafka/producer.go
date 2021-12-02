@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -46,13 +45,13 @@ func main() {
 	}
 
 	// Create Admin Client
-	api, err := kafka.NewAdminClientFromProducer(p)
+	client, err := kafka.NewAdminClientFromProducer(p)
 	if err != nil {
 		log.Fatal().Msgf("failed to create Confluent admin client: %s", err.Error())
 	}
 
 	// Create topic if needed
-	err = CreateTopic(api, conf.KafkaTopic)
+	err = CreateTopic(client, conf.KafkaTopic)
 	if err != nil {
 		log.Fatal().Msgf("fatal error during creation of Kafka topic: %s", err.Error())
 	}

@@ -10,11 +10,15 @@ import (
 )
 
 type KafkaClient interface {
-	CreateTopics(ctx context.Context, topics []kafka.TopicSpecification, options ...kafka.CreateTopicsAdminOption) (result []kafka.TopicResult, err error) {
+	CreateTopics(
+		ctx context.Context,
+		topics []kafka.TopicSpecification,
+		options ...kafka.CreateTopicsAdminOption,
+	) (result []kafka.TopicResult, err error)
 }
 
 // CreateTopic creates a topic using the Confluent Admin Client API
-func CreateTopic(client *KafkaClient, topic string) error {
+func CreateTopic(client KafkaClient, topic string) error {
 	// Contexts are used to abort or limit the amount of time
 	// the Admin call blocks waiting for a result.
 	ctx, cancel := context.WithCancel(context.Background())
