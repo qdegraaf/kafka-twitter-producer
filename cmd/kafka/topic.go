@@ -14,6 +14,11 @@ type KafkaClient interface {
 		ctx context.Context,
 		topics []kafka.TopicSpecification,
 		options ...kafka.CreateTopicsAdminOption,
+	) ([]kafka.TopicResult, error)
+	DeleteTopics(
+		ctx context.Context,
+		topics []string,
+		options ...kafka.DeleteTopicsAdminOption,
 	) (result []kafka.TopicResult, err error)
 }
 
@@ -52,7 +57,7 @@ func CreateTopic(client KafkaClient, topic string) error {
 }
 
 // DeleteTopic deletes a topic using the Confluent Admin Client API
-func DeleteTopic(client *kafka.AdminClient, topic string) error {
+func DeleteTopic(client KafkaClient, topic string) error {
 	// Contexts are used to abort or limit the amount of time
 	// the Admin call blocks waiting for a result.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -73,11 +78,10 @@ func DeleteTopic(client *kafka.AdminClient, topic string) error {
 		return fmt.Errorf("Admin Client request error: %v\n", err)
 	}
 	for _, result := range results {
-		if result.Error.Code() != kafka.ErrNoError && result.Error.Code() != kafka.ErrTopicAlreadyExists {
-			return fmt.Errorf("Failed to create topic: %v\n", result.Error)
+		if result.Error.Code() != kafka.ErrNoError {
+			return fmt.Errorf("Failed to delete topic: %v\n", result.Error)
 		}
 		log.Info().Msgf("%v\n", result)
 	}
-	client.Close()
 	return nil
 }
