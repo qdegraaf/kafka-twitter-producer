@@ -19,7 +19,7 @@ type KafkaClient interface {
 		ctx context.Context,
 		topics []string,
 		options ...kafka.DeleteTopicsAdminOption,
-	) (result []kafka.TopicResult, err error)
+	) ([]kafka.TopicResult, error)
 }
 
 // CreateTopic creates a topic using the Confluent Admin Client API
@@ -29,7 +29,6 @@ func CreateTopic(client KafkaClient, topic string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Set Admin options to wait up to 60s for the operation to finish on the remote cluster
 	maxDur, err := time.ParseDuration("60s")
 	if err != nil {
 		return fmt.Errorf("ParseDuration(60s): %w", err)
@@ -63,7 +62,6 @@ func DeleteTopic(client KafkaClient, topic string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Set Admin options to wait up to 60s for the operation to finish on the remote cluster
 	maxDur, err := time.ParseDuration("60s")
 	if err != nil {
 		return fmt.Errorf("ParseDuration(60s): %w", err)

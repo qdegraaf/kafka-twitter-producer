@@ -58,6 +58,27 @@ func TestCreateTopicIgnoresTopicAlreadyExistsErrors(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestCreateTopicReturnsNilIfClientReturnsNoErrors(t *testing.T) {
+	duration, _ := time.ParseDuration("60s")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockKafka := mock.NewMockKafkaClient(ctrl)
+	mockKafka.EXPECT().CreateTopics(ctx, []kafka.TopicSpecification{{
+		Topic:             "test_topic",
+		NumPartitions:     1,
+		ReplicationFactor: 3}},
+		kafka.SetAdminOperationTimeout(duration),
+	).Return([]kafka.TopicResult{
+		{Topic: "test_topic", Error: kafka.NewError(kafka.ErrNoError, "All good", false)},
+	}, nil)
+	result := CreateTopic(mockKafka, "test_topic")
+	assert.Nil(t, result)
+}
+
 func TestDeleteTopicRaisesErrorIfKafkaClientReturnsError(t *testing.T) {
 	duration, _ := time.ParseDuration("60s")
 	ctx, cancel := context.WithCancel(context.Background())
