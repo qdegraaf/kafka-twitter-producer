@@ -1,6 +1,3 @@
-[![GitHub go.mod Go version of a Go module](https://img.shields.io/github/go-mod/go-version/gomods/athens.svg)](https://github.com/gomods/athens)
-![Tests](https://github.com/qdegraaf/kafka-twitter-producer/.github/workflows/tests.yml/badge.svg)
-
 # kafka-twitter-producer
 This repository contains a producer which connects to the Twitter V2 streaming API and publishes Kafka messages
 using Confluent whenever a message matching a set of rules is posted. These rules can be set by the user
@@ -41,5 +38,5 @@ rules:
     value: cats
     tag: catRule
 ```
-Where the `value` field is the string which the stream will be filtered for and `tag` is a label for the rule
+Where the `value` fields is the string which the stream will be filtered for and `tag` is a label for the rule
 useful for later processing. The `name` field is unused except for administrative purposes
