@@ -1,5 +1,7 @@
 [![Tests](https://github.com/qdegraaf/kafka-twitter-producer/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/qdegraaf/kafka-twitter-producer/actions/workflows/tests.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/qdegraaf/kafka-twitter-producer)](https://goreportcard.com/report/github.com/qdegraaf/kafka-twitter-producer)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 
 # kafka-twitter-producer
 This repository contains a producer which connects to the Twitter V2 streaming API and publishes Kafka messages
