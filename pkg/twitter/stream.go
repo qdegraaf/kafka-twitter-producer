@@ -126,7 +126,6 @@ func DeleteAllRules(api *twitterstream.TwitterApi) error {
 	return nil
 }
 
-
 func DeleteRules(api *twitterstream.TwitterApi, ruleIDs []string, dryrun bool) error {
 	postBody := fmt.Sprintf(`{
 	"delete": {

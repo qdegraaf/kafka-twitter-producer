@@ -9,24 +9,32 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type KafkaClient interface {
+	CreateTopics(
+		ctx context.Context,
+		topics []kafka.TopicSpecification,
+		options ...kafka.CreateTopicsAdminOption,
+	) ([]kafka.TopicResult, error)
+	DeleteTopics(
+		ctx context.Context,
+		topics []string,
+		options ...kafka.DeleteTopicsAdminOption,
+	) ([]kafka.TopicResult, error)
+}
+
 // CreateTopic creates a topic using the Confluent Admin Client API
-func CreateTopic(p *kafka.Producer, topic string) error {
-	a, err := kafka.NewAdminClientFromProducer(p)
-	if err != nil {
-		return fmt.Errorf("failed to create new admin client from producer: %w", err)
-	}
+func CreateTopic(client KafkaClient, topic string) error {
 	// Contexts are used to abort or limit the amount of time
 	// the Admin call blocks waiting for a result.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Set Admin options to wait up to 60s for the operation to finish on the remote cluster
 	maxDur, err := time.ParseDuration("60s")
 	if err != nil {
 		return fmt.Errorf("ParseDuration(60s): %w", err)
 	}
 
-	results, err := a.CreateTopics(
+	results, err := client.CreateTopics(
 		ctx,
 		[]kafka.TopicSpecification{{
 			Topic:             topic,
@@ -43,30 +51,23 @@ func CreateTopic(p *kafka.Producer, topic string) error {
 		}
 		log.Info().Msgf("%v\n", result)
 	}
-	a.Close()
 	return nil
 
 }
 
 // DeleteTopic deletes a topic using the Confluent Admin Client API
-func DeleteTopic(p *kafka.Producer, topic string) error {
-	a, err := kafka.NewAdminClientFromProducer(p)
-	if err != nil {
-		return fmt.Errorf("failed to create new admin client from producer: %w", err)
-	}
-
+func DeleteTopic(client KafkaClient, topic string) error {
 	// Contexts are used to abort or limit the amount of time
 	// the Admin call blocks waiting for a result.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Set Admin options to wait up to 60s for the operation to finish on the remote cluster
 	maxDur, err := time.ParseDuration("60s")
 	if err != nil {
 		return fmt.Errorf("ParseDuration(60s): %w", err)
 	}
 
-	results, err := a.DeleteTopics(
+	results, err := client.DeleteTopics(
 		ctx,
 		[]string{topic},
 		kafka.SetAdminOperationTimeout(maxDur),
@@ -75,11 +76,10 @@ func DeleteTopic(p *kafka.Producer, topic string) error {
 		return fmt.Errorf("Admin Client request error: %v\n", err)
 	}
 	for _, result := range results {
-		if result.Error.Code() != kafka.ErrNoError && result.Error.Code() != kafka.ErrTopicAlreadyExists {
-			return fmt.Errorf("Failed to create topic: %v\n", result.Error)
+		if result.Error.Code() != kafka.ErrNoError {
+			return fmt.Errorf("Failed to delete topic: %v\n", result.Error)
 		}
 		log.Info().Msgf("%v\n", result)
 	}
-	a.Close()
 	return nil
 }
