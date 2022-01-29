@@ -25,7 +25,6 @@ func Init() {
 }
 
 func main() {
-	// TODO: Chop main into sensible chunks. Its getting rather large
 	Init()
 
 	conf, err := config.Parse()
@@ -56,8 +55,7 @@ func main() {
 		log.Fatal().Msgf("fatal error during creation of Kafka topic: %s", err.Error())
 	}
 
-	// Go-routine to handle message delivery reports and
-	// possibly other event types (errors, stats, etc)
+	// Handle messages
 	go func() {
 		for e := range p.Events() {
 			switch ev := e.(type) {
